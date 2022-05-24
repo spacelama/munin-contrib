@@ -141,6 +141,15 @@ my %config = (
 		config => \&common_config,
 		fetch => \&common_fetch,
 	},
+	power_emulated => {
+		filter => qr/^(.*)\.load$/,
+		title => 'UPS emulated power',
+		args => '--base 1000 -l 0',
+		vlabel => 'Watt',
+		config => \&common_config,
+		multiplier => 6.349,  # 400 watts at 63% load on powershield commander 1000
+		fetch => \&common_fetch,
+	},
 );
 
 sub read_ups_values {
@@ -265,7 +274,9 @@ sub common_fetch {
 		$field .= $nominal if $nominal;
 		my $id = clean_fieldname($field);
 
-		print $id . ".value " . $values->{$key} . "\n";
+		print $id . ".value " . $values->{$key}*
+                  (defined $config{$func}->{'multiplier'} ? defined $config{$func}->{'multiplier'} : 1)
+                  . "\n";
 	}
 }
 

@@ -89,7 +89,7 @@ settings_graph={
 #
 # option 1: add "timeout 240" to /etc/munin/munin-node.conf and restart
 
-subgraphs=True
+subgraphs=False
 
 def read_osd(filename):
 	for loop in range(10):

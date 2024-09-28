@@ -26,6 +26,7 @@ Or choose a subset of those you want.
     ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_images
     ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_memory
     ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_network
+    ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_size
     ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_status
     ln -s /usr/share/munin/plugins/docker_ /etc/munin/plugins/docker_volumes
 
@@ -232,19 +233,19 @@ def print_containers_status(client):
     print('running.value', len(running))
     print('running.extinfo', ', '.join(container_summary(c) for c in running))
     print('unhealthy.value', len(unhealthy))
-    print('unhealthy.extinfo', ', '.join(container_summary(c) for c in unhealthy))
+    print('unhealthy.extinfo', (', '.join(container_summary(c) for c in unhealthy)) or '-')
     print('paused.value', len(paused))
-    print('paused.extinfo', ', '.join(container_summary(c) for c in paused))
+    print('paused.extinfo', (', '.join(container_summary(c) for c in paused)) or '-')
     print('created.value', len(created))
-    print('created.extinfo', ', '.join(container_summary(c) for c in created))
+    print('created.extinfo', (', '.join(container_summary(c) for c in created)) or '-')
     print('restarting.value', len(restarting))
-    print('restarting.extinfo', ', '.join(container_summary(c) for c in restarting))
+    print('restarting.extinfo', (', '.join(container_summary(c) for c in restarting)) or '-')
     print('removing.value', len(removing))
-    print('removing.extinfo', ', '.join(container_summary(c) for c in removing))
+    print('removing.extinfo', (', '.join(container_summary(c) for c in removing)) or '-')
     print('exited.value', len(exited))
-    print('exited.extinfo', ', '.join(container_summary(c) for c in exited))
+    print('exited.extinfo', (', '.join(container_summary(c) for c in exited)) or '-')
     print('dead.value', len(dead))
-    print('dead.extinfo', ', '.join(container_summary(c) for c in dead))
+    print('dead.extinfo', (', '.join(container_summary(c) for c in dead)) or '-')
 
 
 def image_summary(image):
@@ -283,6 +284,14 @@ def parallel_container_stats(client):
         proc['proc'].join()
         stats[proc['container']] = proc['queue'].get()
     return stats.items()
+
+
+def print_containers_size(client):
+    for container in client.api.df()['Containers']:
+        size = container['SizeRw'] if 'SizeRw' in container else 0
+        # first char of name is always / so we skip it
+        clean_container_name = clean_fieldname(container['Names'][0][1:])
+        print(clean_container_name + '.value', size)
 
 
 def print_containers_cpu(client):
@@ -430,6 +439,23 @@ def volumes(client, mode):
         print('volumes_quantity.extinfo', ', '.join(volume_summary(v) for v in client.volumes))
 
 
+def size(client, mode):
+    if mode == "config":
+        print("graph_title Docker containers size")
+        print("graph_args --base 1024 -l 0")
+        print("graph_vlabel Bytes")
+        print("graph_category virtualization")
+        print("graph_info This graph shows docker container size.")
+        print("graph_total Total container size")
+        for container in client.all_containers:
+            fieldname = clean_fieldname(container.name)
+            print("{}.label {}".format(fieldname, container.name))
+            print("{}.draw AREASTACK".format(fieldname))
+            print("{}.info {}".format(fieldname, container_attributes(container)))
+    else:
+        print_containers_size(client)
+
+
 def cpu(client, mode):
     if mode == "config":
         graphlimit = str(os.cpu_count() * 100)
@@ -501,6 +527,7 @@ def main():
         'memory',
         'network',
         'status',
+        'size',
         'volumes',
     ]
 
